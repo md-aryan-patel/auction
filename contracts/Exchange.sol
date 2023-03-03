@@ -5,18 +5,13 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Exchange is Ownable {
-    mapping(address => uint256) Bids;
-    address[] bidders;
-
-    constructor() {
-        bidders.push(address(0));
-        Bids[bidders[0]] = 0;
-    }
-
     enum Status {
         UNLISTED,
-        LISTED
+        LISTED,
+        SOLD
     }
+
+    mapping(uint256 => mapping(address => uint256)) Bids;
 
     struct tokenSale {
         address owner;
@@ -25,10 +20,12 @@ contract Exchange is Ownable {
         uint256 startTime;
         uint256 endTime;
         uint256 baseValue;
+        uint256 topBid;
+        address topBidder;
         Status status;
     }
 
-    tokenSale sale;
+    mapping(uint256 => tokenSale) public sale;
 
     function createSale(
         address _token,
@@ -38,66 +35,92 @@ contract Exchange is Ownable {
         uint256 _baseValue
     ) public returns (bool) {
         ERC721 token_ = ERC721(_token);
-        // require(_startTime >= block.timestamp && _endTime > _startTime, "Exchange: Time stamp inappropriate");
+        require(sale[_tokenId].tokenId == 0, "Exchange: Sale already exist");
+        require(
+            _endTime > _startTime && _startTime >= block.timestamp,
+            "Exchange: End time should greater then start time"
+        );
         require(
             token_.ownerOf(_tokenId) == msg.sender,
-            "Exchange: Not yout token"
+            "Exchange: Not your token"
         );
-        sale = tokenSale(
+        sale[_tokenId] = tokenSale(
             msg.sender,
             token_,
             _tokenId,
             _startTime,
             _endTime,
             _baseValue,
+            0,
+            address(0),
             Status.LISTED
         );
+        sale[_tokenId].toke.transferFrom(msg.sender, address(this), _tokenId);
         return true;
     }
 
-    function _checkStatus() internal returns (Status) {
+    function _checkStatus(uint256 current) internal returns (Status) {
         if (
-            block.timestamp >= sale.startTime && block.timestamp <= sale.endTime
-        ) return sale.status = Status.LISTED;
-        else return sale.status = Status.UNLISTED;
+            block.timestamp >= sale[current].startTime &&
+            block.timestamp <= sale[current].endTime
+        ) return sale[current].status = Status.LISTED;
+        else return sale[current].status = Status.UNLISTED;
     }
 
-    function placeBid() public payable returns (uint256) {
-        uint256 lastIndex = _getBiddersLastIndex();
-        // require(_checkStatus() == Status.LISTED);
-        require(sale.owner != msg.sender);
+    function placeBid(uint256 _tokenId) public payable returns (uint256) {
         require(
-            msg.value >= sale.baseValue,
+            _checkStatus(_tokenId) == Status.LISTED,
+            "Exchange: NFT Unlisted"
+        );
+        require(sale[_tokenId].owner != msg.sender, "Exchange Owner can't bid");
+        require(
+            msg.value >= sale[_tokenId].baseValue,
             "Exchange: sent value less then base value"
         );
         require(
-            msg.value >= Bids[bidders[lastIndex]],
+            msg.value >= sale[_tokenId].topBid,
             "Exchange: sent value is less then last bid"
         );
-        bidders.push(msg.sender);
-        Bids[bidders[_getBiddersLastIndex()]] = msg.value;
-        return _getBiddersLastIndex();
-    }
-
-    function declareResult() public onlyOwner returns (address winner) {
-        // require(_checkStatus() == Status.UNLISTED);
-        winner = bidders[_getBiddersLastIndex()];
-        payable(sale.owner).transfer(Bids[winner]);
-        sale.toke.transferFrom(sale.owner, winner, sale.tokenId);
-        delete Bids[winner];
-        delete bidders[_getBiddersLastIndex()];
-        for (uint256 i = _getBiddersLastIndex(); i > 0; i--) {
-            payable(bidders[i]).transfer(
-                (Bids[bidders[i]]) - (Bids[bidders[i]] / 100)
-            );
-            delete Bids[bidders[i]];
-            delete bidders[i];
+        Bids[_tokenId][msg.sender] += msg.value;
+        if (Bids[_tokenId][msg.sender] > sale[_tokenId].topBid) {
+            sale[_tokenId].topBid = Bids[_tokenId][msg.sender];
+            sale[_tokenId].topBidder = msg.sender;
         }
-        return winner;
+        return msg.value;
     }
 
-    function _getBiddersLastIndex() internal view returns (uint256) {
-        uint256 lastIndex = bidders.length - 1;
-        return lastIndex;
+    function checkResult(uint256 _tokenId) public returns (address winner) {
+        require(
+            _checkStatus(_tokenId) == Status.UNLISTED,
+            "Exchange: NFT Listed"
+        );
+        require(
+            block.timestamp > sale[_tokenId].endTime,
+            "Exchange: Can't declare result"
+        );
+        winner = sale[_tokenId].topBidder;
+        if (winner == address(0)) {
+            sale[_tokenId].toke.transferFrom(
+                address(this),
+                sale[_tokenId].owner,
+                _tokenId
+            );
+            delete sale[_tokenId];
+        } else if (msg.sender == winner) {
+            payable(sale[_tokenId].owner).transfer(sale[_tokenId].topBid);
+            sale[_tokenId].toke.transferFrom(
+                address(this),
+                winner,
+                sale[_tokenId].tokenId
+            );
+            delete Bids[_tokenId][winner];
+        } else {
+            payable(msg.sender).transfer(
+                (Bids[_tokenId][msg.sender]) -
+                    (Bids[_tokenId][msg.sender]) /
+                    100
+            );
+            delete Bids[_tokenId][msg.sender];
+        }
     }
 }
