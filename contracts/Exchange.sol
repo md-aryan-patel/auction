@@ -6,12 +6,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract Exchange is Ownable {
     enum Status {
+        UNMARKED,
         UNLISTED,
-        LISTED,
-        SOLD
+        LISTED
     }
-
-    mapping(uint256 => mapping(address => uint256)) Bids;
 
     struct tokenSale {
         address owner;
@@ -25,7 +23,9 @@ contract Exchange is Ownable {
         Status status;
     }
 
-    mapping(uint256 => tokenSale) public sale;
+    mapping(uint256 => tokenSale) sale;
+    mapping(uint256 => mapping(address => uint256)) Bids;
+    mapping(uint256 => bool) saleExist;
 
     function createSale(
         address _token,
@@ -35,7 +35,6 @@ contract Exchange is Ownable {
         uint256 _baseValue
     ) public returns (bool) {
         ERC721 token_ = ERC721(_token);
-        require(sale[_tokenId].tokenId == 0, "Exchange: Sale already exist");
         require(
             _endTime > _startTime && _startTime >= block.timestamp,
             "Exchange: End time should greater then start time"
@@ -44,6 +43,7 @@ contract Exchange is Ownable {
             token_.ownerOf(_tokenId) == msg.sender,
             "Exchange: Not your token"
         );
+        require(!saleExist[_tokenId], "Exchange: Sale already exist");
         sale[_tokenId] = tokenSale(
             msg.sender,
             token_,
@@ -53,14 +53,16 @@ contract Exchange is Ownable {
             _baseValue,
             0,
             address(0),
-            Status.LISTED
+            Status.UNMARKED
         );
         sale[_tokenId].toke.transferFrom(msg.sender, address(this), _tokenId);
-        return true;
+        return saleExist[_tokenId] = true;
     }
 
     function _checkStatus(uint256 current) internal returns (Status) {
-        if (
+        if (block.timestamp < sale[current].startTime)
+            return sale[current].status = Status.UNMARKED;
+        else if (
             block.timestamp >= sale[current].startTime &&
             block.timestamp <= sale[current].endTime
         ) return sale[current].status = Status.LISTED;
@@ -94,11 +96,8 @@ contract Exchange is Ownable {
             _checkStatus(_tokenId) == Status.UNLISTED,
             "Exchange: NFT Listed"
         );
-        require(
-            block.timestamp > sale[_tokenId].endTime,
-            "Exchange: Can't declare result"
-        );
         winner = sale[_tokenId].topBidder;
+
         if (winner == address(0)) {
             sale[_tokenId].toke.transferFrom(
                 address(this),
@@ -106,6 +105,7 @@ contract Exchange is Ownable {
                 _tokenId
             );
             delete sale[_tokenId];
+            delete saleExist[_tokenId];
         } else if (msg.sender == winner) {
             payable(sale[_tokenId].owner).transfer(sale[_tokenId].topBid);
             sale[_tokenId].toke.transferFrom(
