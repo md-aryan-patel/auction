@@ -5,6 +5,7 @@ import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
 contract Exchange {
     mapping(uint256 => mapping(address => uint256)) Bids;
+    mapping(uint256 => mapping(address => uint256)) tokenAmount;
     mapping(uint256 => mapping(address => bool)) isWinner;
 
     struct Sale {
@@ -36,7 +37,10 @@ contract Exchange {
 
     function InstentBuy(uint256 _id) public payable {
         Sale memory currentSale = sale[_id];
-        require(msg.value >= currentSale.buyPrice);
+        require(
+            msg.value >= currentSale.buyPrice,
+            "Exchange: Less price then listed"
+        );
         payable(currentSale.owner).transfer(msg.value);
         currentSale.token.safeTransferFrom(
             currentSale.owner,
@@ -47,14 +51,28 @@ contract Exchange {
         );
     }
 
-    function placeBid(uint256 _id) public payable returns (uint256) {
+    function placeBid(
+        uint256 _id,
+        uint256 _amount
+    ) public payable returns (uint256) {
         Sale memory currentSale = sale[_id];
-        require(msg.value >= currentSale.minBid);
+        require(
+            currentSale.token.balanceOf(currentSale.owner, _id) >= _amount,
+            "Exchange: Amount exceed"
+        );
+        if (Bids[_id][msg.sender] < 0) {
+            require(
+                msg.value >= currentSale.minBid,
+                "Exchange: First Bid should be greater then Mininum bid"
+            );
+            require(_amount > 0, "Exchange: Amount can't be zero");
+        }
         require(msg.sender != currentSale.owner, "Exchange Owner can't bid");
+        tokenAmount[_id][msg.sender] += _amount;
         return Bids[_id][msg.sender] += msg.value;
     }
 
-    function declareWinners(
+    function pickWinners(
         uint256 _id,
         address[] memory winners
     ) public returns (uint256) {
@@ -73,7 +91,7 @@ contract Exchange {
                 currentSale.owner,
                 msg.sender,
                 _id,
-                1,
+                tokenAmount[_id][msg.sender],
                 ""
             );
             transferTo = currentSale.owner;

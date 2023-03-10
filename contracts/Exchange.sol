@@ -59,16 +59,6 @@ contract Exchange is Ownable {
         return saleExist[_tokenId] = true;
     }
 
-    function _checkStatus(uint256 current) internal returns (Status) {
-        if (block.timestamp < sale[current].startTime)
-            return sale[current].status = Status.UNMARKED;
-        else if (
-            block.timestamp >= sale[current].startTime &&
-            block.timestamp <= sale[current].endTime
-        ) return sale[current].status = Status.LISTED;
-        else return sale[current].status = Status.UNLISTED;
-    }
-
     function placeBid(uint256 _tokenId) public payable returns (uint256) {
         require(
             _checkStatus(_tokenId) == Status.LISTED,
@@ -89,6 +79,16 @@ contract Exchange is Ownable {
             sale[_tokenId].topBidder = msg.sender;
         }
         return msg.value;
+    }
+
+    function cancelAuction(uint256 _tokenId) public returns (bool) {
+        tokenSale memory currentSale = sale[_tokenId];
+        require(msg.sender == currentSale.owner);
+        require(_checkStatus(_tokenId) == Status.UNMARKED);
+
+        delete sale[_tokenId];
+        delete saleExist[_tokenId];
+        return true;
     }
 
     function checkResult(uint256 _tokenId) public returns (address winner) {
@@ -122,5 +122,15 @@ contract Exchange is Ownable {
             );
             delete Bids[_tokenId][msg.sender];
         }
+    }
+
+    function _checkStatus(uint256 current) internal returns (Status) {
+        if (block.timestamp < sale[current].startTime)
+            return sale[current].status = Status.UNMARKED;
+        else if (
+            block.timestamp >= sale[current].startTime &&
+            block.timestamp <= sale[current].endTime
+        ) return sale[current].status = Status.LISTED;
+        else return sale[current].status = Status.UNLISTED;
     }
 }
