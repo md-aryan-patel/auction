@@ -3,7 +3,7 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
 
-contract Exchange {
+contract ERC1155Exchange {
     mapping(uint256 => mapping(address => uint256)) Bids;
     mapping(uint256 => mapping(address => uint256)) tokenAmount;
     mapping(uint256 => mapping(address => bool)) isWinner;

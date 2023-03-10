@@ -27,6 +27,16 @@ contract Exchange is Ownable {
     mapping(uint256 => mapping(address => uint256)) Bids;
     mapping(uint256 => bool) saleExist;
 
+    event CreateSale(
+        address owner,
+        uint256 tokenId,
+        uint256 startTime,
+        uint256 endTime,
+        Status status
+    );
+
+    event PlaceBid(address bidder, uint256 bid);
+
     function createSale(
         address _token,
         uint256 _tokenId,
@@ -35,10 +45,10 @@ contract Exchange is Ownable {
         uint256 _baseValue
     ) public returns (bool) {
         ERC721 token_ = ERC721(_token);
-        require(
-            _endTime > _startTime && _startTime >= block.timestamp,
-            "Exchange: End time should greater then start time"
-        );
+        // require(
+        //     _endTime > _startTime && _startTime >= block.timestamp,
+        //     "Exchange: End time should greater then start time"
+        // );
         require(
             token_.ownerOf(_tokenId) == msg.sender,
             "Exchange: Not your token"
@@ -56,14 +66,21 @@ contract Exchange is Ownable {
             Status.UNMARKED
         );
         sale[_tokenId].toke.transferFrom(msg.sender, address(this), _tokenId);
+        emit CreateSale(
+            msg.sender,
+            _tokenId,
+            _startTime,
+            _endTime,
+            sale[_tokenId].status
+        );
         return saleExist[_tokenId] = true;
     }
 
     function placeBid(uint256 _tokenId) public payable returns (uint256) {
-        require(
-            _checkStatus(_tokenId) == Status.LISTED,
-            "Exchange: NFT Unlisted"
-        );
+        // require(
+        //     _checkStatus(_tokenId) == Status.LISTED,
+        //     "Exchange: NFT Unlisted"
+        // );
         require(sale[_tokenId].owner != msg.sender, "Exchange Owner can't bid");
         require(
             msg.value >= sale[_tokenId].baseValue,
@@ -78,13 +95,14 @@ contract Exchange is Ownable {
             sale[_tokenId].topBid = Bids[_tokenId][msg.sender];
             sale[_tokenId].topBidder = msg.sender;
         }
+        emit PlaceBid(msg.sender, Bids[_tokenId][msg.sender]);
         return msg.value;
     }
 
     function cancelAuction(uint256 _tokenId) public returns (bool) {
         tokenSale memory currentSale = sale[_tokenId];
         require(msg.sender == currentSale.owner);
-        require(_checkStatus(_tokenId) == Status.UNMARKED);
+        // require(_checkStatus(_tokenId) == Status.UNMARKED);
 
         delete sale[_tokenId];
         delete saleExist[_tokenId];
@@ -132,5 +150,9 @@ contract Exchange is Ownable {
             block.timestamp <= sale[current].endTime
         ) return sale[current].status = Status.LISTED;
         else return sale[current].status = Status.UNLISTED;
+    }
+
+    function returnIfSaleExist(uint256 _tokenID) external view returns (bool) {
+        return saleExist[_tokenID];
     }
 }
