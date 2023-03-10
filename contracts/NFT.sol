@@ -13,8 +13,6 @@ contract NFT is ERC721, ERC721Enumerable, Ownable {
 
     constructor() ERC721("MyToken", "MTK") {}
 
-    mapping(string => uint256) colors;
-
     function safeMint() public onlyOwner {
         uint256 tokenId = _tokenIdCounter.current();
         _tokenIdCounter.increment();
