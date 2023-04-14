@@ -45,10 +45,10 @@ contract Exchange is Ownable {
         uint256 _baseValue
     ) public returns (bool) {
         ERC721 token_ = ERC721(_token);
-        // require(
-        //     _endTime > _startTime && _startTime >= block.timestamp,
-        //     "Exchange: End time should greater then start time"
-        // );
+        require(
+            _endTime > _startTime && _startTime >= block.timestamp,
+            "Exchange: End time should greater then start time"
+        );
         require(
             token_.ownerOf(_tokenId) == msg.sender,
             "Exchange: Not your token"
@@ -77,10 +77,10 @@ contract Exchange is Ownable {
     }
 
     function placeBid(uint256 _tokenId) public payable returns (uint256) {
-        // require(
-        //     _checkStatus(_tokenId) == Status.LISTED,
-        //     "Exchange: NFT Unlisted"
-        // );
+        require(
+            _checkStatus(_tokenId) == Status.LISTED,
+            "Exchange: NFT Unlisted"
+        );
         require(sale[_tokenId].owner != msg.sender, "Exchange Owner can't bid");
         require(
             msg.value >= sale[_tokenId].baseValue,
@@ -102,7 +102,7 @@ contract Exchange is Ownable {
     function cancelAuction(uint256 _tokenId) public returns (bool) {
         tokenSale memory currentSale = sale[_tokenId];
         require(msg.sender == currentSale.owner);
-        // require(_checkStatus(_tokenId) == Status.UNMARKED);
+        require(_checkStatus(_tokenId) == Status.UNMARKED);
 
         delete sale[_tokenId];
         delete saleExist[_tokenId];

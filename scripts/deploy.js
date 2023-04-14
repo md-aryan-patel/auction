@@ -1,17 +1,19 @@
 const hre = require("hardhat");
 const ethers = hre.ethers;
 
-async function main() {
+const main = async () => {
   const NFT = await ethers.getContractFactory("NFT");
   const nft = await NFT.deploy();
-
   await nft.deployed();
 
-  console.log(`NFT deployed to ${nft.address}`);
-}
+  const Exchange = await ethers.getContractFactory("Exchange");
+  const exchange = await Exchange.deploy();
+  await exchange.deployed();
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
+  console.log(`NFT deployed to ${nft.address}`);
+  console.log(`Exchange deployed to ${exchange.address}`);
+};
+
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;

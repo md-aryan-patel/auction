@@ -2,7 +2,6 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const hre = require("hardhat");
 const toWei = (num) => ethers.utils.parseEther(num.toString());
-const fromWei = (num) => ethers.utils.formatEther(num);
 
 describe("Exchange contract: ", () => {
   let deployer, account_1, account_2, exchange, nft;
@@ -42,9 +41,11 @@ describe("Exchange contract: ", () => {
       expect(events.length).to.equal(2);
       expect(events[1].event).to.equal("CreateSale");
     });
+
     it("Should make sale exist true", async () => {
       expect(await exchange.returnIfSaleExist(0)).to.equal(true);
     });
+
     it("Should transfer nft to exchange contract", async () => {
       expect(await nft.ownerOf(0)).to.equal(exchange.address);
     });
@@ -57,6 +58,7 @@ describe("Exchange contract: ", () => {
             .createSale(nft.address, 0, startTime, endTime, baseValue)
         ).to.be.revertedWith("Exchange: Not your token");
       });
+
       it("Should revert if the sale already exist", async () => {
         expect(
           exchange.createSale(nft.address, 0, startTime, endTime, baseValue)
@@ -83,16 +85,19 @@ describe("Exchange contract: ", () => {
         .connect(account_1)
         .placeBid(0, { value: toWei(0.2) });
     });
+
     it("User should be able to place a bid ", async () => {
       const rcpt = await trx.wait();
       const events = rcpt.events;
       expect(events.length).to.equal(1);
     });
+
     it("Should revert if the next bid is less then top bid", async () => {
       expect(
         await exchange.connect(account_2).placeBid(0, { value: toWei(0.2) })
       ).to.be.revertedWith("Exchange: sent value is less then last bid");
     });
+
     it("Should revert if bidder is Owner", async () => {
       expect(
         exchange.connect(deployer).placeBid(0, { value: toWei(1) })

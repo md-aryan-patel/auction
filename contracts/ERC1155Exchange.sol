@@ -18,6 +18,14 @@ contract ERC1155Exchange {
 
     mapping(uint256 => Sale) public sale;
 
+    event CreateAuction(
+        address tokenAddress,
+        address owner,
+        uint256 amount,
+        uint256 buyPrice,
+        uint256 minBid
+    );
+
     function createAuction(
         address _token,
         uint256 _amount,
@@ -32,10 +40,11 @@ contract ERC1155Exchange {
             "User dont have enough to create auction"
         );
         sale[_id] = Sale(token, msg.sender, _amount, _buyPrice, _minBid);
+        emit CreateAuction(_token, msg.sender, _amount, _buyPrice, _minBid);
         return true;
     }
 
-    function InstentBuy(uint256 _id) public payable {
+    function instentBuy(uint256 _id) public payable {
         Sale memory currentSale = sale[_id];
         require(
             msg.value >= currentSale.buyPrice,
@@ -47,7 +56,7 @@ contract ERC1155Exchange {
             msg.sender,
             _id,
             1,
-            ""
+            "token sent"
         );
     }
 

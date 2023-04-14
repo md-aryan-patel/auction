@@ -21,16 +21,14 @@ contract MyToken is ERC1155, Ownable, Pausable {
     }
 
     function mint(uint256 id, uint256 amount) public onlyOwner {
-        _mint(msg.sender, id, amount, "");
+        _mint(_msgSender(), id, amount, "");
     }
 
     function mintBatch(
-        address to,
         uint256[] memory ids,
-        uint256[] memory amounts,
-        bytes memory data
+        uint256[] memory amounts
     ) public onlyOwner {
-        _mintBatch(to, ids, amounts, data);
+        _mintBatch(_msgSender(), ids, amounts, "");
     }
 
     function _beforeTokenTransfer(
